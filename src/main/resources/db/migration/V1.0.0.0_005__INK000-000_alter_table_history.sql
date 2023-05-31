@@ -1,0 +1,7 @@
+ALTER TABLE user_status_history 
+ADD id INT AUTO_INCREMENT,
+ADD PRIMARY KEY(id);
+
+ALTER TABLE order_tracker_history 
+ADD id INT AUTO_INCREMENT,
+ADD PRIMARY KEY(id);

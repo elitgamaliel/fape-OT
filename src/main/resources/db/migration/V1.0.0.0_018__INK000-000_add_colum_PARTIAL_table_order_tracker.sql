@@ -1,0 +1,1 @@
+ALTER TABLE order_tracker ADD COLUMN partial tinyint(1);

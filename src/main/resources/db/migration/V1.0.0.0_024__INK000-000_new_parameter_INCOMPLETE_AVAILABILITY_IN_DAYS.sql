@@ -1,0 +1,1 @@
+INSERT INTO `application_parameter` (`code`, `description`, `value`, `version`) VALUES ('INCOMPLETE_AVAILABILITY_IN_DAYS', 'Cantidad de dias de busqueda de disponibilidades abiertas.', '1', '0');

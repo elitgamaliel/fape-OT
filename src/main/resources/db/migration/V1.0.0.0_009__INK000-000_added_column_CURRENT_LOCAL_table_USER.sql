@@ -1,0 +1,3 @@
+
+ALTER TABLE user
+ADD COLUMN current_local VARCHAR(16) NULL;

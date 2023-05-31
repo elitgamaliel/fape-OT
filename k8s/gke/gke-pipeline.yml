@@ -1,0 +1,657 @@
+name: '$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)'
+trigger:
+  branches:
+    include:
+      - develop
+      - master
+      - release
+      - feature/*
+      - hotfix/*
+      - topic
+      - test/*
+resources:
+  - repo: self
+parameters:
+  - name: namespace
+    displayName: Seleccionar ambiente
+    type: string
+    default: omnichannel
+    values:
+    - ecommerce
+    - omnichannel
+    - loyalty
+    - coupon
+    - vtex
+    - tomador
+    - performance
+    - servipartner
+  - name: dev
+    displayName: Select Branch Dev
+    type: string
+    default: 'Insertar Branch a desplegar en dev'
+  - name: qas
+    displayName: Select Branch Qas
+    type: string
+    default: 'Insertar Branch a desplegar en qas'
+  - name: uat
+    displayName: Select Branch Uat
+    type: string
+    default: 'Insertar Branch a desplegar en uat'
+variables:
+  domain: pe.farmaciasperuanas
+  projectname: omni
+  nameapp: ms-order-tracker
+  typeapp: bus
+  owner: fps
+  vmImageName: ubuntu-20.04
+  vmImagePool: OnPremise - Farmacias Peruanas
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  PORT: 8080
+  KUBECTL_VERSION: 1.22.0
+  PROFILE_DEV: $(crossteam-dev)
+  PROFILE_QAS: $(crossteam-qas)
+  PROFILE_UAT: $(crossteam-uat)
+  PROFILE_PRD: $(crossteam-prd)
+  NAMESPACE: ${{parameters.namespace}}
+  GCP_REGISTRY_DEV: GCP-REGISTRY-FP-DEV-DIG
+  GCP_PROJECT_DEV: fp-dev-dig-project
+  GCP_GKE_DEV: GCP-GKE-FP-DEV-DIG
+  GCP_REGISTRY_QAS: GCP-REGISTRY-FP-QAS-DIG
+  GCP_PROJECT_QAS: fp-qas-dig-project
+  GCP_GKE_QAS: GCP-GKE-FP-QAS-DIG
+  GCP_REGISTRY_UAT: GCP-REGISTRY-FP-UAT-DIG
+  GCP_PROJECT_UAT: fp-uat-dig-project
+  GCP_GKE_UAT: GCP-GKE-FP-UAT-DIG
+  GCP_REGISTRY_PRD: GCP-REGISTRY-FP-PRD-DIG
+  GCP_PROJECT_PRD: fp-prd-dig-project
+  GCP_GKE_PRD: GCP-GKE-FP-PRD-DIG
+  AWS_ECR: AWS-ECR
+  AWS_EKS: AWS-EKS
+  ECR_IMAGE: order-tracker-service
+  AWS_REGION: us-west-2
+  AWS_EKS_UAT: AWS-EKS-UAT
+  AWS_EKS_PRD: AWS-EKS-PRD
+stages:
+  - stage: compileAndScan
+    displayName: compileAndScan
+    jobs:
+      - job: compileJob
+        displayName: compileJob
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: createTag
+            name: createTag
+          - bash: |
+              #fullbranch=$(Build.SourceBranch)
+              #echo "##vso[task.setvariable variable=branch]${fullbranch:11}"
+            displayName: readBranch
+            name: readBranch
+          - task: Maven@3
+            displayName: mvnCompile
+            name: mvnCompile
+            inputs:
+              goals: clean install -Dmaven.test.skip=true
+              sonarQubeRunAnalysis: false
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - publish: k8s
+            artifact: k8s
+  - stage: devDeploy
+    displayName: devDeploy
+    condition: >-
+      and(succeeded('compileAndScan'),or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.dev}}')))
+    jobs:
+      - job: buildJobDev
+        displayName: buildJob Dev
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean install -Dmaven.test.skip=true
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'Build and Push Image'
+            inputs:
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              command: buildAndPush
+              containerRegistry: $(GCP_REGISTRY_DEV)
+              repository: '$(GCP_PROJECT_DEV)/$(owner)-$(typeapp)-$(nameapp)'
+              tags: $(tag)
+      - deployment: devDeploy
+        displayName: devDeploy
+        dependsOn: buildJobDev
+        condition: >-
+          and(succeeded('buildJobDev'),or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.dev}}')))
+        environment: development
+        pool:
+          vmImage: $(vmImageName)
+        variables:
+          subdomain: dev-$(namespace)-$(owner)-$(typeapp)-$(nameapp)-ws
+          domain: solucionesdigitalfps.com
+          secret: solucionesdigitalfps-com
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - bash: |
+                    curl ifconfig.co
+                  displayName: publicIp
+                  name: publicIp
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs: 
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{PROJECT}/$(GCP_PROJECT_DEV)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_DEV)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{NAMESPACE}/$(NAMESPACE)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SUBDOMAIN}/$(subdomain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{DOMAIN}/$(domain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SECRET}/$(secret)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(GCP_GKE_DEV)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)
+  - stage: qaDeploy
+    displayName: qaDeploy
+    condition: >-
+      and(succeeded('compileAndScan'),or(eq(variables['Build.SourceBranch'], 'refs/heads/topic'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.qas}}')))
+    jobs:
+      - job: buildJobQas
+        displayName: buildJob Qas
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean install -Dmaven.test.skip=true
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'Build and Push Image'
+            inputs:
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              command: buildAndPush
+              containerRegistry: $(GCP_REGISTRY_QAS)
+              repository: '$(GCP_PROJECT_QAS)/$(owner)-$(typeapp)-$(nameapp)'
+              tags: $(tag)
+      - deployment: qaDeploy
+        displayName: qaDeploy
+        dependsOn: buildJobQas
+        condition: >-
+          and(succeeded('buildJobQas'),or(eq(variables['Build.SourceBranch'], 'refs/heads/topic'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.qas}}')))
+        environment: testing
+        pool:
+          vmImage: $(vmImageName)
+        variables:
+          subdomain: qas-$(namespace)-$(owner)-$(typeapp)-$(nameapp)-ws
+          domain: solucionesdigitalfps.com
+          secret: solucionesdigitalfps-com
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs: 
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{PROJECT}/$(GCP_PROJECT_QAS)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_QAS)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{NAMESPACE}/$(NAMESPACE)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SUBDOMAIN}/$(subdomain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{DOMAIN}/$(domain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SECRET}/$(secret)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(GCP_GKE_QAS)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)
+  - stage: uatDeployAWS
+    displayName: uatDeployAWS
+    dependsOn: [qaDeploy]
+    condition: >-
+      and(succeeded('compileAndScan'),or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.uat}}')))
+    jobs:
+      - job: buildJobUat
+        displayName: buildJob UatAWS
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean package
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'build Image'
+            inputs:
+              command: build
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              buildContext: '$(Build.SourcesDirectory)'
+              repository: '$(ECR_IMAGE)'
+          - task: ECRPushImage@1
+            inputs:
+              awsCredentials: $(AWS_ECR)
+              regionName: $(AWS_REGION)
+              imageSource: 'imagename'
+              sourceImageName: '$(ECR_IMAGE)'
+              sourceImageTag: $(Build.BuildId)
+              pushTag: $(tag)
+              repositoryName: '$(ECR_IMAGE)'
+      - deployment: uatDeploy
+        displayName: uatDeployAWS
+        dependsOn: buildJobUat
+        condition: >-
+          and(succeeded('buildJobUat'),or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.uat}}')))
+        environment: uat
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs:
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{AWS_REGION}/$(AWS_REGION)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    sed -i 's/#{TARGET_PORT}/$(TARGET_PORT)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_UAT)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    sed -i 's/#{NAMESPACE}/$(NAMESPACE)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: enkelwill.aws-iam-authenticator.custom-build-release-task.aws-eks-authenticator@0
+                  displayName: 'AWS EKS Configure'
+                  inputs:
+                    clusterName: $(AWS_EKS_UAT)
+                    awsCredentials: $(AWS_EKS)
+                    regionName: $(AWS_REGION)
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(AWS_EKS_UAT)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/eks/eks-deployment-uat.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)
+  - stage: uatDeploy
+    displayName: uatDeploy
+    dependsOn: [qaDeploy]
+    condition: >-
+      and(succeeded('compileAndScan'),or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.uat}}')))
+    jobs:
+      - job: buildJobUat
+        displayName: buildJob Uat
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean install -Dmaven.test.skip=true
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'Build and Push Image'
+            inputs:
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              command: buildAndPush
+              containerRegistry: $(GCP_REGISTRY_UAT)
+              repository: '$(GCP_PROJECT_UAT)/$(owner)-$(typeapp)-$(nameapp)'
+              tags: $(tag)
+      - deployment: uatDeploy
+        displayName: uatDeploy
+        dependsOn: buildJobUat
+        condition: >-
+          and(succeeded('buildJobUat'),or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), eq(variables['Build.SourceBranch'], 'refs/heads/${{parameters.uat}}')))
+        environment: testing
+        pool:
+          vmImage: $(vmImageName)
+        variables:
+          subdomain: uat-$(namespace)-$(owner)-$(typeapp)-$(nameapp)-ws
+          domain: solucionesdigitalfps.com
+          secret: solucionesdigitalfps-com
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs: 
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{PROJECT}/$(GCP_PROJECT_UAT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_UAT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{NAMESPACE}/$(NAMESPACE)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SUBDOMAIN}/$(subdomain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{DOMAIN}/$(domain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SECRET}/$(secret)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(GCP_GKE_UAT)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)
+  - stage: prdDeployAWS
+    displayName: prdDeployAWS
+    dependsOn: [uatDeployAWS]
+    condition: >-
+      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/release'))
+    jobs:
+      - job: buildJobPrd
+        displayName: buildJob PrdAWS
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean package
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'build Image'
+            inputs:
+              command: build
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              buildContext: '$(Build.SourcesDirectory)'
+              repository: '$(ECR_IMAGE)'
+          - task: ECRPushImage@1
+            inputs:
+              awsCredentials: $(AWS_ECR)
+              regionName: $(AWS_REGION)
+              imageSource: 'imagename'
+              sourceImageName: '$(ECR_IMAGE)'
+              sourceImageTag: $(Build.BuildId)
+              pushTag: $(tag)
+              repositoryName: '$(ECR_IMAGE)'
+      - deployment: prdDeploy
+        displayName: prdDeployAWS
+        dependsOn: buildJobPrd
+        condition: >-
+          and(succeeded('buildJobPrd'), eq(variables['Build.SourceBranch'], 'refs/heads/release')) 
+        environment: production
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs:
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{AWS_REGION}/$(AWS_REGION)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                    sed -i 's/#{TARGET_PORT}/$(TARGET_PORT)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_PRD)/g' $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: enkelwill.aws-iam-authenticator.custom-build-release-task.aws-eks-authenticator@0
+                  displayName: 'AWS EKS Configure'
+                  inputs:
+                    clusterName: $(AWS_EKS_PRD)
+                    awsCredentials: $(AWS_EKS)
+                    regionName: $(AWS_REGION)
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(AWS_EKS_PRD)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/eks/eks-deployment-prd.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)
+  - stage: prdDeploy
+    displayName: prdDeploy
+    dependsOn: [uatDeploy]
+    condition: >-
+      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/release'))
+    jobs:
+      - job: buildJobPrd
+        displayName: buildJob Prd
+        continueOnError: false
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - bash: |
+              ccommit="$(Build.SourceVersion)"
+              echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+            displayName: setvariables
+            name: setvariables
+          - task: Cache@2
+            inputs:
+              key: maven | "$(Agent.OS)" | **/pom.xml
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+                maven
+              path: $(MAVEN_CACHE_FOLDER)
+            displayName: Cache Maven local repo
+          - task: Maven@3
+            displayName: mvnPackage
+            name: mvnPackage
+            inputs:
+              goals: clean package
+              sqMavenPluginVersionChoice: latest
+              options: $(MAVEN_OPTS)
+              javaHomeOption: JDKVersion
+              jdkVersionOption: '1.11'
+          - task: Docker@2
+            displayName: 'Build and Push Image'
+            inputs:
+              dockerfile: '$(Build.SourcesDirectory)/Azurefile'
+              command: buildAndPush
+              containerRegistry: $(GCP_REGISTRY_PRD)
+              repository: '$(GCP_PROJECT_PRD)/$(owner)-$(typeapp)-$(nameapp)'
+              tags: $(tag)
+      - deployment: prdDeploy
+        displayName: prdDeploy
+        dependsOn: buildJobPrd
+        condition: >-
+          and(succeeded('buildJobPrd'), eq(variables['Build.SourceBranch'], 'refs/heads/release')) 
+        environment: production
+        pool:
+          vmImage: $(vmImageName)
+        variables:
+          subdomain: $(namespace)-$(owner)-$(typeapp)-$(nameapp)-ws
+          domain: fapedigital.com
+          secret: fapedigital-com
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: KubectlInstaller@0
+                  displayName: Kubectl installer
+                  inputs: 
+                    kubectlVersion: $(KUBECTL_VERSION)
+                - download: current
+                  artifact: k8s
+                - bash: |
+                    ccommit="$(Build.SourceVersion)"
+                    echo "##vso[task.setvariable variable=tag]${ccommit:0:8}"
+                  displayName: setvariables
+                  name: setvariables
+                - bash: |
+                    sed -i 's/#{PROJECT}/$(GCP_PROJECT_PRD)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{TAG}/$(tag)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PORT}/$(PORT)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{PROFILE}/$(PROFILE_PRD)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{NAMESPACE}/$(NAMESPACE)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SUBDOMAIN}/$(subdomain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{DOMAIN}/$(domain)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    sed -i 's/#{SECRET}/$(secret)/g' $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                  displayName: replaceParameters
+                  name: replaceParameters
+                - task: Kubernetes@1
+                  displayName: kubectl apply
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(GCP_GKE_PRD)
+                    command: apply
+                    arguments: -f $(Pipeline.Workspace)/k8s/gke/gke-deployment.yml
+                    versionOrLocation: version
+                    versionSpec: $(KUBECTL_VERSION)

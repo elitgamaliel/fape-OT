@@ -1,0 +1,1 @@
+ALTER TABLE receipt_type MODIFY dni varchar(10) null;

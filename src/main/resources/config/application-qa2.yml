@@ -1,0 +1,75 @@
+spring:
+  datasource:
+    url: jdbc:mysql://qa02ordertracker.c4rjguxjh6uc.us-east-1.rds.amazonaws.com:3306/qa02ordertracker?autoReconnect=true&useSSL=false&serverTimezone=America/Lima
+    username: operaciones
+    password: Operaciones2020
+  cloud:
+    gcp:
+      project-id: fp-serverless-qa-project
+      credentials:
+        location: classpath:gcp/qa/fp-serverless-qa-project-84aa081dd49c.json
+    stream:
+      bindings:
+        channel:
+          destination: orderStatus.omni.topic
+          group: ordertracker
+    
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              ReactiveMongoTemplate: DEBUG
+tracker:
+  properties:
+    external:
+      nofification-url: http://us-notifications/Notification/sendSms
+      fulfillment-center-get-store-url: http://us-fulfillment-center/fulfillment/store/{localCode}
+      fulfillment-center-get-all-stores-url: http://us-fulfillment-center/fulfillment/store/localType/{localType}
+      deliverymanager-get-order-url: http://us-deliverymanager/fulfillment/order/{orderNumber}
+      audit-create-order-status-history-url: http://us-audit/audit/order/history
+      audit-create-order-status-history-bulk-url: http://us-audit/audit/order/history/sync
+      fulfillment-center-get-cancellation-reason-url: http://us-deliverymanager/fulfillment/cancellation/reason?appType=OMNI_DELIVERY
+      confirm-attendance-url: https://qas-fps-bus-ms-omni-attendance-ws.solucionesdigitalfps.com/omni/v1.0.0/attendance/confirm
+      pubsub-publishing-url: https://qas-util-pubsub.solucionesfps.pe/publishing
+
+sms:
+  properties:
+    message-code-farmamoto: <#> {0} es tu clave para ingresar a OmniTracker. Q6Wt+BmYgVq
+
+authentication:
+  jwt:
+    publicKey: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF6Rk9sK3VmWGVET3dGMlQ2dUtUMQp6Z3ladFpUbExkNDhWbXZxWWNxUWxybUxHQ09vejBVUlM1SEYxUFhFUkg4akZyKzdUelFHUlJDMjlub1N2c1gwCjJ5L3VNMHpJV2VIY2I3SFM4dHdxMy9mbEJtWC8yTm8xaVM3dHc3VDM4bzRBSmtGTmtiZUttRGtiMU9aeTFYTEoKSU9qTkFsMHplWTgvMGFkU1doanZOc3RpTHh2ck9sM2VCYjRBa1RvZFB5M09hZGw3Z3N2OE9uTFYwZ2taeC9hagpETlphK2Q4UnRoNVNadWtEQWFrWkx6UStFT1pZM3dIaWJYNFZUbzhLak4zSHQzMFkvTHppSmpjM3o5cXhoNGN5CndQWmpqL1Jjc0ZlWXVvR3NLZmpXelJCaFUzaFFoRldyL2ZESlZDU3E4dktOTk02K0lpcDEwTEw4VXlHVzZVRmEKSXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t
+    privateKey: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBekZPbCt1ZlhlRE93RjJUNnVLVDF6Z3ladFpUbExkNDhWbXZxWWNxUWxybUxHQ09vCnowVVJTNUhGMVBYRVJIOGpGcis3VHpRR1JSQzI5bm9TdnNYMDJ5L3VNMHpJV2VIY2I3SFM4dHdxMy9mbEJtWC8KMk5vMWlTN3R3N1QzOG80QUprRk5rYmVLbURrYjFPWnkxWExKSU9qTkFsMHplWTgvMGFkU1doanZOc3RpTHh2cgpPbDNlQmI0QWtUb2RQeTNPYWRsN2dzdjhPbkxWMGdrWngvYWpETlphK2Q4UnRoNVNadWtEQWFrWkx6UStFT1pZCjN3SGliWDRWVG84S2pOM0h0MzBZL0x6aUpqYzN6OXF4aDRjeXdQWmpqL1Jjc0ZlWXVvR3NLZmpXelJCaFUzaFEKaEZXci9mREpWQ1NxOHZLTk5NNitJaXAxMExMOFV5R1c2VUZhSXdJREFRQUJBb0lCQUZoVnJZTk1xZldZZXYrUwpNMmFTUW9aaklpekRnMVVTS0FuQXUrS3RQVmM4UGVzZ3Q0RnNQYTdyQlprczZ6NGxyTmpQNlQyem95Wkd0S0xZClliUkNScnBmL1Y0R1N2TzQxcUVmUXJDbUNJOHRUOEUxWmFldHBzbDVGV2V2bkNZcng5ckNEclA1b3B4dXpCNTkKeHBXSyszTVQwbFc4VDEyMVZZVGhEcFJQQlZRdFVaU1ZJbHdIY0ozS0ZmY0pkYktrcnd2cS9HWkszTng5TGwwTgpVZnBIbUlXTFpKZktqTSsrcmxXSkd3M20yMkN1cjhISGxockVMNHBsdExlVUpkcTF1VEpwZWlManM1bnUrcXlNCjdQa2RQa1pVMFhhNThJd2lnV0t4THo3SEo1TVBIMFpLdHJhOE9Cam01TzRrc29YTVNqTGRjZmp5WW12eDlsZEsKcm1WZCtQRUNnWUVBN005ZUVCLzJjS296ZWxlRldxWlVFZEROdlNjaHZEUmdsblEvZE55UGM0Y3JNbitBRktDawpZOWs0Y0RuNjVoRVhsZ2h1Q2V1V3RkeGQzZEE1TmZqazM3M01icmhRWG1MeEF4L3BudjBMNkxFRytLaWpOTyt3ClI4Q1dWWXhhblh0bmI0U2d6bnJHdCt0V0VZWS8reDFhOE1oRHNPVkRxeFZnZksvSitOY2JoRHNDZ1lFQTNPSnEKQnFTc3I4MUZ1eUszV0w4VnZBemUwUk92eVpOU1FYRkF0bU42ZGI1M1JEMzhkZzVqV2djUlBOOFFuRmthZmpIcAppRFI2M2FWOVNoWDFwUWFuUmF2VndtOEVxcG1wTmRJcGtPamhxbmxMMHhGYTV1bng0OHBxUUFsY2tjcXNmaEhkCjFTc0NFT0JlSEN0Ti9RbVF4OEdoL0NxZXBCTkhSaWNORkFjUkt6a0NnWUIrR0psOHVwaE9POEwzaFQwRUhRY3QKQ1dOVU1rOGJXVVNKT05ORlZlQ280clBVeXVHWG1rYU95Rzd1QzJHWE9raTE0ajA5MlEzQ1B0cFlyM1NYVWJZRgprWm9XNXR3Y3RsQ2htaytiRWlGU1FWbDE5TTRhOVBxSDZudmloNzhFbGw1b21sWEtQTVF0MFFsZWdYNzJKeFp5Cm1pQzVSQXM1UVVQRWdSSnFCNWltV3dLQmdHUzRhWmgxNXJpVFpjU2JZL2QzeXJWaE9Ra2xiUGNCMG5RODdFRSsKdzB5RmVXVUl6dUlXVlg5cjBaUnNNdXJZUnBoY3NoeUZzYkQ0RVZXREJld21TSWdnZnV5V0t3NlAydlRMekdCagprT05uUkFnTzFlQ050TnNtSmFUbG4reHErcFRTR05Gbk54M3k4WGJ1MkRVVjg0cmk1TFpUeU5zUVgyUEIwdGpiCkVCMGhBb0dCQUl3VzNIQmJDK3hKQ0NOM09hNjhNdHczbU5tc1U0NTFadGxVbUFjUGNtRzJZMlNWTWM1c250K2MKeUxNSnpzNmhFampZWkU4aVRKSVN5MTB0RDlUMEZKakJjZXMrZkVTaE9ZV2VpcnM2MHFxZWtiN0ZWeTNVWVYybwo5MWJPMVdCU1JmSnZGYU93S2p0aEdkMlhFMDVlci8xNTNzRjhtNTJFRFcxaHFGN2tNVDUrCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0t
+
+firebase:
+  system:
+    config:
+      order-tracker-service-account: classpath:firebase/qa2/OrderTrackerServiceAccount.json
+      inka-tracker-service-account: classpath:firebase/qa2/InkaTrackerServiceAccount.json
+      inka-tracker-lite-service-account: classpath:firebase/qa2/InkaTrackerLiteServiceAccount.json
+      order-tracker-database-url: https://ordertracker-qa2.firebaseio.com/
+      inka-tracker-database-url: https://inkafarma-qa2.firebaseio.com/
+      inka-tracker-lite-database-url: https://inkatracker-lite-qa2.firebaseio.com/
+      
+external-tracker:
+  properties:
+    inka-tracker:
+      update-motorized-status-url: http://us-inkatracker/nvr/motorized/{motorizedId}/status
+    inka-tracker-lite:      
+      update-motorized-status-url: http://us-inkatrackerlite/nvr/motorized/status/{motorizedId}
+    delivery-manager:
+      update-order-status:
+        update-order-status-url: http://us-deliverymanager/fulfillment/order/
+        update-order-status-connect-timeout: 30000
+        update-order-status-read-timeout: 60000
+      bulk-sync-order-status:
+        bulk-sync-order-status-url: http://us-deliverymanager/fulfillment/tracker/orders/synchronize
+        bulk-sync-order-status-connect-timeout: 30000
+        bulk-sync-order-status-read-timeout: 60000
+
+messaging:
+  util-pubsub:
+    topic: order-status-audit.omni.topic

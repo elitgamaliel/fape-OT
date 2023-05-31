@@ -1,0 +1,82 @@
+spring:
+  datasource:
+    url: jdbc:mysql://ci02bd.c4rjguxjh6uc.us-east-1.rds.amazonaws.com:3306/ordertracker?autoReconnect=true&useSSL=false&serverTimezone=America/Lima
+    username: root
+    password: mjPjxJnhXspNOvIAmZw1FEQT
+    #url: jdbc:mysql://uatordertracker.c4rjguxjh6uc.us-east-1.rds.amazonaws.com:3306/uatordertracker?autoReconnect=true&useSSL=false&serverTimezone=America/Lima
+    #username: operaciones
+    #password: Operaciones2020.
+  jpa:
+    show-sql: false
+  cloud:
+    gcp:
+      project-id: fp-ci-poc
+      credentials:
+        location: classpath:gcp/ci/fp-ci-poc-4ddfd380689b.json
+    stream:
+      bindings:
+        channel:
+          destination: orderStatus.omni.topic
+          group: ordertracker
+    
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              ReactiveMongoTemplate: DEBUG
+tracker:
+  properties:
+    external:
+      nofification-url: http://us-notifications/Notification/sendSms
+      fulfillment-center-get-store-url: http://fulfillment-centerci02.backend.cindibyinkafarma.com/fulfillment/store/{localCode}
+      fulfillment-center-get-all-stores-url: http://fulfillment-centerci02.backend.cindibyinkafarma.com/fulfillment/store/localType/{localType}
+      deliverymanager-get-order-url: http://deliverymanagerci02.backend.cindibyinkafarma.com/fulfillment/order/{orderNumber}
+      audit-create-order-status-history-url: http://auditci02.backend.cindibyinkafarma.com/audit/order/history
+      audit-create-order-status-history-bulk-url: http://auditci02.backend.cindibyinkafarma.com/audit/order/history/sync
+      fulfillment-center-get-cancellation-reason-url: http://deliverymanagerci02.backend.cindibyinkafarma.com/fulfillment/cancellation/reason?appType=OMNI_DELIVERY
+      confirm-attendance-url: https://dev-fps-bus-ms-omni-attendance-ws.solucionesdigitalfps.com/omni/v1.0.0/attendance/confirm
+      pubsub-publishing-url: https://dev-util-pubsub.solucionesfps.pe/publishing
+  
+sms:
+  properties:
+    message-code-farmamoto: <#> {0} es tu clave para ingresar a OmniTracker. IatWEXUeHTB
+
+authentication:
+  jwt:
+    publicKey: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF6dHNXelhib0UwM0pPalNpaUlWSwoxNkNTeTJJWlU2RVdTVkYwZGtwbFo5Y2FLWHV4eUtXU1JiV21yOXhpb1ZIclNuTVE0NFVMUkZHOHQzNncwdUEwClh3ME02VG5lN2JlVFo2Z1dnazRZVXNzcldyY1Foekp2OHpWVyt2bHNUdW1lRUo1ZWFINk91U0UzZSsxSDRyTXAKR3VtN0lWUFExcmNuc2owUlRzd1luZFR2NlVPaThVdEYzYlBoajFoQk5QZFUxVTVzWlZLMkc4Ymx3QVNVRE5PNQpBaDIzdHRkYXJwOTRTamRNUkFVQjl5Z0w1NWdtU1ppRjA3R29RMGsyYU5GaGFycGNva3NWMFZxMVplWVlaYlJGClRZdmFPNG1jbldhNHZDQXlYWjRuWVVPZjFvdUJsc0NxZWMxUEwwR2pUNGN0czFCYXJCcmZMQjlOTW1HMkl0bHkKU1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t
+    privateKey: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBenRzV3pYYm9FMDNKT2pTaWlJVksxNkNTeTJJWlU2RVdTVkYwZGtwbFo5Y2FLWHV4CnlLV1NSYldtcjl4aW9WSHJTbk1RNDRVTFJGRzh0MzZ3MHVBMFh3ME02VG5lN2JlVFo2Z1dnazRZVXNzcldyY1EKaHpKdjh6VlcrdmxzVHVtZUVKNWVhSDZPdVNFM2UrMUg0ck1wR3VtN0lWUFExcmNuc2owUlRzd1luZFR2NlVPaQo4VXRGM2JQaGoxaEJOUGRVMVU1c1pWSzJHOGJsd0FTVUROTzVBaDIzdHRkYXJwOTRTamRNUkFVQjl5Z0w1NWdtClNaaUYwN0dvUTBrMmFORmhhcnBjb2tzVjBWcTFaZVlZWmJSRlRZdmFPNG1jbldhNHZDQXlYWjRuWVVPZjFvdUIKbHNDcWVjMVBMMEdqVDRjdHMxQmFyQnJmTEI5Tk1tRzJJdGx5U1FJREFRQUJBb0lCQVFDMnRDSSsxZ0NEVkZnZwoxZTZkQUlZclVBTjRLaXhPaG1CbDM5RXF6ZWtsUDRNM0VxN2psd0pNR2ZhaEs5bmR2THBDcHNGTEErOEFwK1UwCmVXejZ4TmJkQVd6ZTdxTnRlWkJ6cEs1RTUyOXFhVkxnckFLb055OVVORStnR3YvRDcyb1NLWjhmVW5FREtVaVYKWiszdldPazhnU2NzZDVoa25aOHRPZXo0bVNKQS9BUkVRcUQvTElXTjRDSVRzcHV3Q28zSGlZWlVEUzZxbFg4QQozVGsvd0NoeGkxU05zZk1Cb1p5b3VncEt2YWFteVBYc3dxMEVYZVpZSFhKUUh6M2UrWGFidzlhaElPTlFPVDB1CldIUU8zYkFmWHFjU3YwOUh5cFpuVzNuZEVNeUZiaHdhVURLNlkzRUhWTHg5QjhLYVdiYWVGMk1iempNS0JENUMKRGRHVkRhcEZBb0dCQVBncFEzY1FZSEJUNGF2d3dZSDhlSzRqSFFYejdUNytTbGdkNHNiU1ltWjFWN0tkbXlTMwpWUm9zM1JMSWRPMEhtaWY1eGFMOE5uV0lGQ0RUY3VVdGxWZlVseitUNE0zWXh5WVl3S3g0b0VGcHVJMUZyY0F5CmpiR3k5OU1YSmtZNEtISG9xK083aS8vcVQ2QjY2ZVFLQkVmd3lwTnBobzVWdlNCTDk1Skg2b2xuQW9HQkFOVmoKMEJWd2V2Q3FJMTlkWTI5SHJrVUpZZWNxL0tXOEJGaHRwZ04vWnVGRFN5eUo4Mmhzd29YZk91UCsyZXRNd2MyOAo0U3kzbUg1UG12MFZWZmwrNG8yY3VZeTBPMzlRZjdrSTAvdVZMM0NHaHl4UTBPTjFLRWRvQ2pXVjl4OTF6dXhaCmZhUzNyYlNjRFZQN0pydklHVzJxZ2c3ZnIySHQvNnpFcmREU2VlalBBb0dCQU92VUN0RHpOektJQkVXcG5ic3gKZWwzQjhLcmZpKzM1S2gxakNVZDRWeHFYR0tnZExucE4zd25vNkk0WkFVVGZuSmV3dlNpT0ZoTExKcFdyVzl4KwozUldDYWRsNVpvRTRLTWtEYk5aNks1RCtMdXZSODdSYVZsMHdmbUtUOVVOMXlybTFLdVJZTGtzZEdGNmhiL1BOCnNSUE11RFl1YWppSk1obW5GN1pqc1hheEFvR0FZZ0daekg4QXVCQXNkdHhaa3Y2RkY4Z2JZeVRuTE9lUngxdDAKNkI1WGpoWnVMR0tmbk5KMjlTMTF5c2wrSlFmMzZ4cFpBVVRCa1NIV3VXNVhNbVFJZ2FuOXZwWDR6WnlYVE5DMQpLOU4xR21WdkovZG1PVkhSMGhvQ3RtSE9RbkRGUE9CTlNKM2o5aFBHTzFBYWxoeHRNV1VpbnRvMW52REVnUUZFCkk2akh2UmtDZ1lFQTVZdVRyV3FVWm0zejBCdktuTzRmUGxiWVJCSnVpaEVjVmJSOHI5WG5pYjZHUWZKRnZHNkEKMWh0N1VXVGVieFQ1ZFltMHRJNWtDRlg1MVFnKzE5b2hDM3NWSW1tRk4ycWpleld2SDVubXU2L0NqbWw3SXByago1aE9aTmNXT1QxT2VrQWFQaDFYSmxtdjdDQ0JENDJqTnRJMlFlWmJOYVhaQkJQY2Y4emdRc1JRPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQ==
+
+firebase:
+  system:
+    config:
+      order-tracker-service-account: classpath:firebase/ci2/OrderTrackerServiceAccount.json
+      inka-tracker-service-account: classpath:firebase/ci2/InkaTrackerServiceAccount.json
+      inka-tracker-lite-service-account: classpath:firebase/ci2/InkaTrackerLiteServiceAccount.json
+      order-tracker-database-url: https://ordertracker-ci2.firebaseio.com/
+      inka-tracker-database-url: https://inkafarma-ci2.firebaseio.com/
+      inka-tracker-lite-database-url: https://inkatracker-lite-ci2.firebaseio.com/
+      
+external-tracker:
+  properties:
+    inka-tracker:
+      update-motorized-status-url: http://inkatrackerci02.backend.cindibyinkafarma.com/nvr/motorized/{motorizedId}/status
+    inka-tracker-lite:      
+      update-motorized-status-url: http://inkatrackerliteci02.backend.cindibyinkafarma.com/nvr/motorized/status/{motorizedId}
+    delivery-manager:
+      update-order-status:
+        update-order-status-url: http://deliverymanagerci02.backend.cindibyinkafarma.com/fulfillment/order/
+        update-order-status-connect-timeout: 30000
+        update-order-status-read-timeout: 60000
+      bulk-sync-order-status:
+        bulk-sync-order-status-url: http://deliverymanagerci02.backend.cindibyinkafarma.com/fulfillment/tracker/orders/synchronize
+        bulk-sync-order-status-connect-timeout: 30000
+        bulk-sync-order-status-read-timeout: 60000
+
+messaging:
+  util-pubsub:
+    topic: order-status-audit.omni.topic
+        
+

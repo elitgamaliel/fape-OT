@@ -1,0 +1,1 @@
+INSERT INTO `order_tracker_status` (`code`, `description`, `order_by_number`) VALUES ('EXT_ASSIGNED', 'Orden asignada externamente', '1');

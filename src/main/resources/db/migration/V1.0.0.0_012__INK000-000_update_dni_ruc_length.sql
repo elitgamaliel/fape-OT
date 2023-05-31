@@ -1,0 +1,2 @@
+ALTER TABLE receipt_type MODIFY dni VARCHAR(15);
+ALTER TABLE receipt_type MODIFY ruc VARCHAR(15);

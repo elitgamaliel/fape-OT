@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: us-audit
+  labels:
+    app: us-audit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: us-audit
+  template:
+    metadata:
+      labels:
+        app: us-audit
+    spec:
+      containers:
+      - name: us-audit
+        image: 519901771307.dkr.ecr.us-west-2.amazonaws.com/audit-service:#{TAG}
+        env:
+        - name: environment
+          value: #{PROFILE}
+        - name: LOG_LEVEL_SYSTEM
+          value: "INFO"
+        - name: LOG_LEVEL_BUSINESS
+          value: "ERROR"
+        - name: newrelic
+          value: "-javaagent:/usr/src/service/newrelic.jar"
+        - name: NEW_RELIC_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: newrelic
+              key: licensekey
+        ports:
+        - containerPort: #{PORT}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 3000Mi
+          requests:
+            cpu: 200m
+            memory: 1000Mi
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: us-audit
+  name: us-audit
+spec:
+  type: NodePort
+  ports:
+  - name: "80"
+    port: 80
+    targetPort: #{PORT}
+  selector:
+    app: us-audit
+status:
+  loadBalancer: {}

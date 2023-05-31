@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: us-audit
+  labels:
+    app: us-audit
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: us-audit
+  template:
+    metadata:
+      labels:
+        app: us-audit
+    spec:
+      containers:
+      - name: us-audit
+        image: 519901771307.dkr.ecr.us-west-2.amazonaws.com/audit-service:#{TAG}
+        env:
+        - name: environment
+          value: #{PROFILE}
+        - name: LOG_LEVEL_SYSTEM
+          value: "INFO"
+        - name: LOG_LEVEL_BUSINESS
+          value: "ERROR"
+        - name: LOGS_FOLDER
+          value: "/var/log/us-audit"
+        ports:
+        - containerPort: #{PORT}
+        resources:
+          limits:
+            cpu: 200m
+            memory: 2.5Gi
+          requests:
+            cpu: 200m
+            memory: 2.5Gi
+      restartPolicy: Always
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: instanceId
+                operator: NotIn
+                values:
+                - 039766e78a640e9e1
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: instanceId
+                operator: NotIn
+                values:
+                - 03984d79202a99827
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: us-audit
+  name: us-audit
+spec:
+  type: NodePort
+  ports:
+  - name: "80"
+    port: 80
+    targetPort: #{PORT}
+  selector:
+    app: us-audit
+status:
+  loadBalancer: {}

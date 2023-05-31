@@ -1,0 +1,62 @@
+spring:
+  datasource:
+    url: jdbc:mysql://ci01ordertracker.c4rjguxjh6uc.us-east-1.rds.amazonaws.com:3306/ci01ordertracker?autoReconnect=true&useSSL=false&serverTimezone=America/Lima
+    username: root
+    password: vXqdx25WerjcjQ43a3B8J7q
+  jpa:
+    show-sql: false
+    
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              ReactiveMongoTemplate : DEBUG
+tracker:
+  properties:
+    external:
+      nofification-url: http://us-notifications/Notification/sendSms
+      fulfillment-center-get-store-url: http://us-fulfillment-center/fulfillment/store/{localCode}
+      fulfillment-center-get-all-stores-url: http://us-fulfillment-center/fulfillment/store/localType/{localType}
+      deliverymanager-get-order-url: http://us-deliverymanager/fulfillment/order/{orderNumber}
+      audit-create-order-status-history-url: http://us-audit/audit/order/history
+      audit-create-order-status-history-bulk-url: http://us-audit/audit/order/history/sync
+      fulfillment-center-get-cancellation-reason-url: http://us-deliverymanager/fulfillment/cancellation/reason?appType=OMNI_DELIVERY
+      confirm-attendance-url: http://fps-bus-ms-omni-attendanceci02.backend.cindibyinkafarma.com/omni/v1.0.0/attendance/confirm
+
+sms:
+  properties:
+    message-code-farmamoto: <#> {0} es tu clave para ingresar a FarmaMoto. xwjsAgU6Uft
+
+authentication:
+  jwt:
+    publicKey: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUE2bE1qNkFpV2N3Wkk3VWQ5bmp3egpZc1FxeUg3VHBuNktXTlZmQm5kcEh4ek5GeEd4Y0NjS1JXSVorYkR1bDlPYVo3NEY2clh3VHpQSlFGc2g1WEp4CjBDNFVRRzhlUFRiNTc1NWpkdE5wMVo4L0U4anpaK08wY2c4WkNxdmk5WGd6eWR2K1N2YkpyTlhmLzRxMkVhMTkKVTl2M3dwdVlJK3FRRkRLNFNtbWJQOUcrTURRTUNDZUxZVEUwV0FQMC9CUDBBR1JISnpxbXlKZ0QzeXExNHliNApWWFRRUE1PL3lkdGZYa2VDMGRaT29odFFhQU9xVDk3SFR1eWdTT2NGVk1ENTdOTGkrRGs5dzFBYTRUaXM0NFRQCnkrNG9UMmpMdlR1dERGRTRma0Nkb3lUR2NkNE9CUUE0ZHhLMUc2dDVSMXhVd21LRG1hM2JiR1Q4c2NERTBYOEEKWlFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t
+    privateKey: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBNmxNajZBaVdjd1pJN1VkOW5qd3pZc1FxeUg3VHBuNktXTlZmQm5kcEh4ek5GeEd4CmNDY0tSV0laK2JEdWw5T2FaNzRGNnJYd1R6UEpRRnNoNVhKeDBDNFVRRzhlUFRiNTc1NWpkdE5wMVo4L0U4anoKWitPMGNnOFpDcXZpOVhnenlkditTdmJKck5YZi80cTJFYTE5VTl2M3dwdVlJK3FRRkRLNFNtbWJQOUcrTURRTQpDQ2VMWVRFMFdBUDAvQlAwQUdSSEp6cW15SmdEM3lxMTR5YjRWWFRRUE1PL3lkdGZYa2VDMGRaT29odFFhQU9xClQ5N0hUdXlnU09jRlZNRDU3TkxpK0RrOXcxQWE0VGlzNDRUUHkrNG9UMmpMdlR1dERGRTRma0Nkb3lUR2NkNE8KQlFBNGR4SzFHNnQ1UjF4VXdtS0RtYTNiYkdUOHNjREUwWDhBWlFJREFRQUJBb0lCQUNicVQ5aEZOTmM5Zi9jSQpISENmQnRtc1FuNnhzV3pCTHpDNW51SndDbUZFWXpzbGtSWlRKWDJJWVUvNmRtVjRtdmdIc3V2YjgyRHo5TVJmClhpM0E1KzN1K1NZS1RqZFVYZ1hSaEN0RHlSdlZLcUNhaXZJQit3SEdTQjVobFh1MnpzTURhaVFCQUZWWDM2K00KMWRmeHZCS2xRV3hzY3NQa1BMRmVDd1V3ckx2WVJDTjlGSzE5ZVd3TTFjY2JPa0FoQjJnV1l1cmZyR2I0SkFCVwpWV0t4SFpxWXovMU9FL1AwZ0hTdDZ0UEY5VWJ6Q1dnRXN4djRna1MyZDJHZ3FRLzc4MVU1UWlMQ3pxRHBhV0NpClFmc0pldExqbk1lTzhFNDBVZWEweThCeEptbUdxenJ5UktmUGJkRUVvcTVNcVBmbERtRndLa0NPYW1pMTJzbEgKTENhYm80RUNnWUVBK2RvSzhVSGZ0U3NFK3pBcUxtTTBTT29xSVNzU2xwemxDYnZSczZIRnZLQS9CbUhHSDdieAphTDZpQ1NuRUVZNEM4TVF3TnIvTWRaalBpWjlBWDNPL3E1eS9FMmFPNDRCS1ltZTNmSnQrV2RnL2krcmQrdkRNCi85Wi9DaEdYMVJJSkR4VlN2dlRuR09TVDk2YzBrdENqcXRYQUNPWVdYeHNBZ1haTVlrZWhBajBDZ1lFQThCZEkKem9HOHpyNUNBZTRuZE5xbm14RUNxYXZ2MFlzV0tqUUtJRzZUTHpPWjFRQmpISDk1bmxpTzBCUS9qOW1waVE4SAorR1J0RG9IaFYvUkNBb2tia2phUkpQNzN3QkQ0SG1tYytjYmNwT1FCeWNLaHhtd3JyOTRTZWZHcjZrZWFuZE8yClVHemNyd25VTEsrb2Y4NWI4RDFrWkVyMHB2VkhhK3JIaFU2eG9Va0NnWUVBeUl6UnJiZmZsbTlTajBHcENoVU4KT2Qza05UMTZyVFNBMENCWGdlVy9iOW44M09XTWY1WjhEa1Mra2JaWnNIR2FRS0pweFBpTmFITmhXeWxlSllBbQpnTnpQcndYcWVnaFhMTWZ0eTNLUXFCTmhackQrdjFlY1pWdEtHODNsWHQwY01tUStTQk1Ta0xPaFplOXJ6dEQwCkhzTjJZbTQxMU44NnQ3QTZQY1ViSTAwQ2dZRUExWlVSS3N4VloySHZuSUg5VGNIYVNtTkdpQ1F4Y3FxVnJET2gKTXByTGlya1B4MkhSeVo5SlZPa1pHdGg0ZHdLK0EvU0FOYU01TlNlcmpLLzVMUUpGcWJ1clFVc2tvUk0zZHU2agpPN3lCdXBvdlVRbzVHaWhPY09SUWNYVGhaOGdOTHd3UTZ0ajlOU1c4UDRpQWtEbkdwaUFuTitWS1lXQmdDZ3ZSCk5MRDk2aWtDZ1lFQWdONkJWcWtyQXo4SmZRSm9PSVN4WEJlUFBZdzNKVDJFTnB6ZThYNWI0ZlM5MnhhL2tCbVgKSXdldmR6Qkt3T2tMYllzWGdDd2h2YU1PcWRSU01zTFRObjcrV05qTGc4L2VSa3VESFgwNndaWVoxR3pXV0hKZwovYnljZlNoTURlV2k1d2VtcTh1d1VXTHB5TWdtZExpOUJodEpHSE9tcXQxWGFjekcyUFJvSlY0PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQ==
+
+firebase:
+  system:
+    config:
+      order-tracker-service-account: classpath:firebase/ci/OrderTrackerServiceAccount.json
+      inka-tracker-service-account: classpath:firebase/ci/InkaTrackerServiceAccount.json
+      inka-tracker-lite-service-account: classpath:firebase/ci/InkaTrackerLiteServiceAccount.json
+      order-tracker-database-url: https://ordertracker-ci.firebaseio.com/
+      inka-tracker-database-url: https://inkafarma-ci.firebaseio.com/
+      inka-tracker-lite-database-url: https://inkatracker-lite-ci.firebaseio.com/
+
+external-tracker:
+  properties:
+    inka-tracker:
+      update-motorized-status-url: http://us-inkatracker/nvr/motorized/{motorizedId}/status
+    inka-tracker-lite:      
+      update-motorized-status-url: http://us-inkatrackerlite/nvr/motorized/status/{motorizedId}
+    delivery-manager:
+      update-order-status:
+        update-order-status-url: http://us-deliverymanager/fulfillment/order/
+        update-order-status-connect-timeout: 30000
+        update-order-status-read-timeout: 60000
+      bulk-sync-order-status:
+        bulk-sync-order-status-url: http://us-deliverymanager/fulfillment/tracker/orders/synchronize
+        bulk-sync-order-status-connect-timeout: 30000
+        bulk-sync-order-status-read-timeout: 60000

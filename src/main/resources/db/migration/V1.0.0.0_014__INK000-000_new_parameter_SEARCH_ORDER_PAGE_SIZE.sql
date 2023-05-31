@@ -1,0 +1,1 @@
+INSERT INTO `application_parameter` (`code`, `description`, `value`, `version`) VALUES ('SEARCH_ORDER_PAGE_SIZE', 'Cantidad de órdenes a mostrar por página.', '20', '0');

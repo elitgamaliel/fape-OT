@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: order-tracker
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      maximum-pool-size: 20
+      idle-timeout: 10000
+      connection-timeout: 30000
+      auto-commit: false
+      pool-name: engine_pool_inkatracker
+      minimum-idle: 5
+
+  jackson:
+    default-property-inclusion: NON_NULL
+  # Use spring.jpa.properties.* for Hibernate native properties (the prefix is
+  # stripped before adding them to the templates manager).
+  jpa:
+    # Show or not log for each sql query
+    show-sql: false
+
+    hibernate:
+      # Hibernate ddl auto (create, create-drop, updateBO): with "updateBO" the database
+      # schema will be automatically updated accordingly to java entities found in
+      # the project
+      ddl-auto: none
+
+    properties:
+      hibernate:
+        # Naming strategy
+        implicit_naming_strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        # Allows Hibernate to generate SQL optimized for a particular DBMS
+        dialect: org.hibernate.dialect.MySQL5Dialect
+logging:
+  config: classpath:logging/logback.xml
+info:
+  app:
+    name: order-tracker
+    description: Microservice to expose the resource order to tracker
+  version: 1.0.0.1
+
+interceptor:
+  security:
+    disabled-for:
+      - /user/test
+      - /order
+      - /orders/status/assigned
+      - /orders/status/unassigned
+      - /order/*/status/*
+      - /orders/*/reason
+      - /nvr/user
+      - /nvr/user/*
+      - /user/password
+      - /nvr/motorized/export
+      - /nvr/tracker/motorized/*/orders
+      - /nvr/tracker/motorized/local/code/*
+      - /nvr/tracker/motorized/order/*
+      #- /nvr/tracker/motorized/*
+      #- /nvr/tracker/motorized/local/code
+      #- /nvr/tracker/motorized/order
+      - /motorized/export
+      - /error
+      - /nvr/delivery-travel
+      - /actuator/health
+      - /characterEncodingFilter
+      - /settings/active
+      - /settings/active/*
+      - /nvr/order/partial
+      - /motorized/detail/*
+      - /motorized/info
+      - /motorized/assigned-routes
+
+service:
+  timeout:
+    connect: 40000
+    read: 40000
+
+  # lsof -P | grep ':PortNumber' | awk '{print $2}' | xargs kill -9
+
+  # openssl genrsa -out jwt.pem to generate the pair of keys
+  # openssl rsa -in jwt.pem will show the private key
+  # openssl rsa -in jwt.pem -pubout will show the public key
+ 
+external:
+  users:
+    name:
+      - admin
+      - henry
+      - farmacias
+    password:
+      - admin
+      - henry
+      - F4rm4c1as$21

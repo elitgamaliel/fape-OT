@@ -1,0 +1,1 @@
+ALTER TABLE `order_tracker` ADD COLUMN `external_routing` tinyint(1) DEFAULT 0;
